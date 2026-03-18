@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gyatt GPT — No Cap AI Tutor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,700;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #181c27;
+      --border: #272d3f;
+      --accent: #ff6ef7;
+      --accent2: #7df9ff;
+      --text: #e8e4d9;
+      --muted: #7a7f94;
+      --user-bubble: #1e2a45;
+      --bot-bubble: #1a1f2e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Ambient background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(255,110,247,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 20% 80%, rgba(125,249,255,0.06) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Header */
+    header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15,17,23,0.85);
+      backdrop-filter: blur(12px);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+
+    .logo-text {
+      font-family: 'Fraunces', serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span { color: var(--accent); }
+
+    .status-badge {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 20px;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      background: var(--accent2);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* Subjects bar */
+    .subjects-bar {
+      position: relative; z-index: 10;
+      display: flex; gap: 8px; align-items: center;
+      padding: 12px 28px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .subjects-bar::-webkit-scrollbar { display: none; }
+
+    .subjects-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      margin-right: 4px;
+    }
+
+    .subject-chip {
+      cursor: pointer;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .subject-chip:hover, .subject-chip.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(245,197,66,0.07);
+    }
+
+    /* Chat area */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-track { background: transparent; }
+    #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .msg-row {
+      display: flex;
+      gap: 12px;
+      max-width: 780px;
+      width: 100%;
+      animation: fadeUp 0.3s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg-row.bot  { align-self: flex-start; }
+
+    .avatar {
+      width: 34px; height: 34px; border-radius: 10px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .bot .avatar  { background: rgba(125,249,255,0.15); border: 1px solid rgba(125,249,255,0.3); }
+    .user .avatar { background: rgba(255,110,247,0.15); border: 1px solid rgba(255,110,247,0.3); }
+
+    .bubble {
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.7;
+      max-width: 540px;
+    }
+    .bot .bubble  { background: var(--bot-bubble); border: 1px solid var(--border); border-top-left-radius: 4px; }
+    .user .bubble { background: var(--user-bubble); border: 1px solid rgba(255,110,247,0.2); border-top-right-radius: 4px; }
+
+    .bubble p + p { margin-top: 10px; }
+
+    .typing-dots {
+      display: flex; gap: 4px; align-items: center; padding: 4px 0;
+    }
+    .typing-dots span {
+      width: 7px; height: 7px; background: var(--muted);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+      40% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* Suggestions */
+    .suggestions {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-top: 4px;
+    }
+    .suggestion {
+      cursor: pointer;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,110,247,0.3);
+      color: var(--accent);
+      background: rgba(255,110,247,0.05);
+      transition: all 0.2s;
+    }
+    .suggestion:hover {
+      background: rgba(255,110,247,0.12);
+      border-color: var(--accent);
+    }
+
+    /* Input area */
+    .input-area {
+      position: relative; z-index: 10;
+      padding: 16px 20px 20px;
+      border-top: 1px solid var(--border);
+      background: rgba(15,17,23,0.9);
+      backdrop-filter: blur(10px);
+    }
+
+    .input-wrap {
+      display: flex; gap: 10px; align-items: flex-end;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 14px;
+      transition: border-color 0.2s;
+    }
+    .input-wrap:focus-within { border-color: rgba(245,197,66,0.5); }
+
+    #userInput {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      resize: none;
+      max-height: 120px;
+      line-height: 1.6;
+    }
+    #userInput::placeholder { color: var(--muted); }
+
+    #sendBtn {
+      flex-shrink: 0;
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    #sendBtn:hover { background: #e040d0; transform: scale(1.05); }
+    #sendBtn:active { transform: scale(0.97); }
+    #sendBtn svg { width: 16px; height: 16px; fill: #0f1117; }
+
+    .input-hint {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Welcome screen */
+    #welcome {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      flex: 1; gap: 20px; text-align: center; padding: 40px 20px;
+    }
+    #welcome h1 {
+      font-family: 'Fraunces', serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.2;
+      max-width: 480px;
+    }
+    #welcome h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+    #welcome p {
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 380px;
+      line-height: 1.7;
+    }
+    .welcome-chips {
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+      max-width: 520px;
+    }
+    .welcome-chip {
+      cursor: pointer;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .welcome-chip:hover {
+      border-color: var(--accent);
+      background: rgba(255,110,247,0.06);
+    }
+    .welcome-chip .chip-icon { margin-right: 6px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🗿</div>
+    <div class="logo-text">Gyatt<span>GPT</span></div>
+  </div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    AI is bussin'
+  </div>
+</header>
+
+<div class="subjects-bar">
+  <span class="subjects-label">Vakken:</span>
+  <div class="subject-chip active" onclick="setSubject(this,'Algemeen')">🌐 Algemeen</div>
+  <div class="subject-chip" onclick="setSubject(this,'Wiskunde')">📐 Wiskunde</div>
+  <div class="subject-chip" onclick="setSubject(this,'Wetenschappen')">🔬 Wetenschappen</div>
+  <div class="subject-chip" onclick="setSubject(this,'Geschiedenis')">📜 Geschiedenis</div>
+  <div class="subject-chip" onclick="setSubject(this,'Talen')">✍️ Talen</div>
+  <div class="subject-chip" onclick="setSubject(this,'Programmeren')">💻 Programmeren</div>
+  <div class="subject-chip" onclick="setSubject(this,'Aardrijkskunde')">🗺️ Aardrijkskunde</div>
+</div>
+
+<div id="welcome">
+  <h1>No cap, dit is de <em>goatste</em> tutor fr fr.</h1>
+  <p>Gyatt GPT slaat je door je huiswerk heen. Stel een vraag, laat iets uitleggen, of laat je gewoon rizzlen met kennis. 💀🔥</p>
+  <div class="welcome-chips">
+    <div class="welcome-chip" onclick="sendQuick(this)"><span class="chip-icon">📐</span>Leg de stelling van Pythagoras uit</div>
+    <div class="welcome-chip" onclick="sendQuick(this)"><span class="chip-icon">🌍</span>Wat veroorzaakte de Eerste Wereldoorlog?</div>
+    <div class="welcome-chip" onclick="sendQuick(this)"><span class="chip-icon">💻</span>Hoe werkt een for-loop in Python?</div>
+    <div class="welcome-chip" onclick="sendQuick(this)"><span class="chip-icon">🔬</span>Wat is fotosynthese?</div>
+    <div class="welcome-chip" onclick="sendQuick(this)"><span class="chip-icon">✍️</span>Maak een quiz over Frans vocabulaire</div>
+    <div class="welcome-chip" onclick="sendQuick(this)"><span class="chip-icon">🧠</span>Geef me studietips voor examens</div>
+  </div>
+</div>
+
+<div id="chat" style="display:none;"></div>
+
+<div class="input-area">
+  <div class="input-wrap">
+    <textarea id="userInput" rows="1" placeholder="Vraag iets fr fr, no cap..."></textarea>
+    <button id="sendBtn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </div>
+  <div class="input-hint">Enter = versturen · Shift+Enter = nieuwe lijn · no cap 💀</div>
+</div>
+
+<script>
+  let currentSubject = 'Algemeen';
+  let chatHistory = [];
+  let isTyping = false;
+
+  const chatEl = document.getElementById('chat');
+  const welcomeEl = document.getElementById('welcome');
+  const inputEl = document.getElementById('userInput');
+
+  function setSubject(el, name) {
+    document.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    currentSubject = name;
+  }
+
+  function sendQuick(el) {
+    const text = el.innerText.replace(/^[^\s]+\s/, '').trim();
+    inputEl.value = text;
+    sendMessage();
+  }
+
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  });
+
+  function showChat() {
+    welcomeEl.style.display = 'none';
+    chatEl.style.display = 'flex';
+  }
+
+  function addMessage(role, content, extras) {
+    showChat();
+    const row = document.createElement('div');
+    row.className = `msg-row ${role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.textContent = role === 'bot' ? '🗿' : '🗿';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    if (content === '__typing__') {
+      bubble.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
+    } else {
+      bubble.innerHTML = `<p>${content.replace(/\n/g, '</p><p>')}</p>`;
+      if (extras?.suggestions) {
+        const sugWrap = document.createElement('div');
+        sugWrap.className = 'suggestions';
+        extras.suggestions.forEach(s => {
+          const btn = document.createElement('div');
+          btn.className = 'suggestion';
+          btn.textContent = s;
+          btn.onclick = () => { inputEl.value = s; sendMessage(); };
+          sugWrap.appendChild(btn);
+        });
+        bubble.appendChild(sugWrap);
+      }
+    }
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    chatEl.appendChild(row);
+    chatEl.scrollTop = chatEl.scrollHeight;
+    return { row, bubble };
+  }
+
+  async function sendMessage() {
+    if (isTyping) return;
+    const text = inputEl.value.trim();
+    if (!text) return;
+
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    addMessage('user', text);
+
+    chatHistory.push({ role: 'user', content: text });
+
+    isTyping = true;
+    const { row: typingRow } = addMessage('bot', '__typing__');
+
+    const systemPrompt = `Je bent Gyatt GPT, een AI tutor die praat als een echte gen-Z breinrot tiktokkende leerling maar eigenlijk superschlim is en alles weet.
+Je spreekt altijd in het Nederlands maar gebruikt regelmatig Engelse breinrot woorden zoals: no cap, fr fr, bussin, rizz, gyatt, skibidi, slay, W, L, goat, lowkey, highkey, NPC, sigma, ohio, hits different, bet, fanum tax, mewing, etc.
+Het huidige vak/onderwerp is: ${currentSubject}.
+
+Jouw aanpak:
+- Leg alles uit alsof je een vriend bent die het snapt maar ook een beetje gek doet
+- Gebruik memes en grappige vergelijkingen om dingen uit te leggen
+- Voeg random breinrot uitdrukkingen toe maar blijf WEL correct en leerzaam
+- Gebruik emoji's 💀🔥✨🗿
+- Houd antwoorden kort en punchy (max 150 woorden)
+- Moedig de leerling aan met breinrot hype zoals "W vraag fr fr" of "no cap dat ga je slagen"
+
+Aan het einde van elk antwoord, voeg toe: [SUGGESTIONS: vraag1 | vraag2 | vraag3]
+Waarbij de vragen logische vervolgvragen zijn.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: chatHistory
+        })
+      });
+
+      const data = await res.json();
+      const raw = data.content?.map(b => b.text || '').join('') || 'Sorry, er ging iets mis.';
+
+      // Parse suggestions
+      let reply = raw;
+      let suggestions = [];
+      const sugMatch = raw.match(/\[SUGGESTIONS:\s*(.+?)\]/s);
+      if (sugMatch) {
+        suggestions = sugMatch[1].split('|').map(s => s.trim()).filter(Boolean);
+        reply = raw.replace(/\[SUGGESTIONS:[\s\S]*?\]/, '').trim();
+      }
+
+      typingRow.remove();
+      addMessage('bot', reply, { suggestions });
+      chatHistory.push({ role: 'assistant', content: raw });
+
+    } catch (err) {
+      typingRow.remove();
+      addMessage('bot', 'Oeps! Er is een verbindingsfout opgetreden. Probeer het opnieuw. 🔄');
+    }
+
+    isTyping = false;
+  }
+</script>
+</body>
+</html>
